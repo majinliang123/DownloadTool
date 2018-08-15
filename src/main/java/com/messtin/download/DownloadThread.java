@@ -7,38 +7,34 @@ import java.util.concurrent.CountDownLatch;
 
 public class DownloadThread implements Runnable {
 
-    private static final int threshold = 4096;
-
     private HttpURLConnection httpURLConnection;
     private long startPos;
     private long endPos;
-    private String fileName;
+    private RandomAccessFile file;
     private int id;
     private CountDownLatch latch;
 
-    public DownloadThread(URLConnection urlConnection, long startPos, long endPos, String fileName, int id, CountDownLatch latch) {
+    public DownloadThread(URLConnection urlConnection, long startPos, long endPos, RandomAccessFile file, int id, CountDownLatch latch) {
         this.httpURLConnection = (HttpURLConnection) urlConnection;
         this.startPos = startPos;
         this.endPos = endPos;
-        this.fileName = fileName;
+        this.file = file;
         this.id = id;
         this.latch = latch;
     }
 
+    @Override
     public void run() {
-        setHttpHeader(httpURLConnection);
-        try (InputStream in = new BufferedInputStream(httpURLConnection.getInputStream());
-            OutputStream out= new BufferedOutputStream(new FileOutputStream(fileName + "-" + id, true))) {
+        setRangeHeader();
+        try (InputStream in = new BufferedInputStream(httpURLConnection.getInputStream())) {
 
             byte[] b = new byte[1024];
             int len = 0;
-            int count = 0;
-            while ((len = in.read(b)) != -1){
-                out.write(b, 0, len);
-                count ++;
-                if(count < threshold){
-                    out.flush();
-                }
+            long count = startPos;
+            file.seek(startPos);
+//            in.skip(startPos);
+            while ((len = in.read(b)) != -1) {
+                file.write(b, 0, len);
             }
             latch.countDown();
         } catch (IOException ex) {
@@ -47,10 +43,9 @@ public class DownloadThread implements Runnable {
 
     }
 
-    private void setHttpHeader(HttpURLConnection httpURLConnection) {
-        httpURLConnection.setConnectTimeout(60 * 1000);
-        httpURLConnection.setAllowUserInteraction(true);
-        httpURLConnection.setRequestProperty("Range",
+    private void setRangeHeader() {
+        httpURLConnection.setRequestProperty("RANGE",
                 "bytes=" + startPos + "-" + endPos);
     }
+
 }

@@ -3,9 +3,11 @@ package com.messtin.download;
 import java.io.IOException;
 
 public class App {
-    public static void main(String[] args) throws IOException {
-        String url = "https://download.jetbrains.8686c.com/idea/ideaIC-2018.2.tar.gz";
-        int threadNum = 4;
+    private static final int processors = Runtime.getRuntime().availableProcessors();
+
+    public static void main(String[] args) throws IOException, InterruptedException {
+        String url = "https://codeload.github.com/majinliang123/interview/zip/master";
+        int threadNum = 2;
         DownloadTask.download(url, threadNum);
     }
 }
