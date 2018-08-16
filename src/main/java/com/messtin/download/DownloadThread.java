@@ -1,50 +1,49 @@
 package com.messtin.download;
 
 import java.io.*;
-import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLConnection;
-import java.util.concurrent.CountDownLatch;
 
 public class DownloadThread implements Runnable {
 
-    private HttpURLConnection httpURLConnection;
+    private URL url;
     private long startPos;
     private long endPos;
-    private RandomAccessFile file;
-    private int id;
-    private CountDownLatch latch;
+    private String fileName;
 
-    public DownloadThread(URLConnection urlConnection, long startPos, long endPos, RandomAccessFile file, int id, CountDownLatch latch) {
-        this.httpURLConnection = (HttpURLConnection) urlConnection;
+    public DownloadThread(URL url, long startPos, long endPos, String fileName) {
+        this.url = url;
         this.startPos = startPos;
         this.endPos = endPos;
-        this.file = file;
-        this.id = id;
-        this.latch = latch;
+        this.fileName = fileName;
     }
 
     @Override
     public void run() {
-        setRangeHeader();
-        try (InputStream in = new BufferedInputStream(httpURLConnection.getInputStream())) {
-
-            byte[] b = new byte[1024];
-            int len = 0;
-            long count = startPos;
-            file.seek(startPos);
-//            in.skip(startPos);
-            while ((len = in.read(b)) != -1) {
-                file.write(b, 0, len);
+        try (RandomAccessFile file = new RandomAccessFile(fileName, "rw")) {
+            URLConnection urlConnection = url.openConnection();
+            setRangeHeader(urlConnection);
+            try (InputStream in = new BufferedInputStream(urlConnection.getInputStream())) {
+                byte[] b = new byte[4096];
+                file.seek(startPos);
+                for (int len = 0; (len = in.read(b)) != -1; ) {
+                    file.write(b, 0, len);
+                }
             }
-            latch.countDown();
+        } catch (FileNotFoundException ex) {
+            System.out.println(ex);
         } catch (IOException ex) {
-            System.err.println(ex);
+            System.out.println(ex);
         }
-
     }
 
-    private void setRangeHeader() {
-        httpURLConnection.setRequestProperty("RANGE",
+    private void setRangeHeader(URLConnection urlConnection) {
+        urlConnection.setRequestProperty("User-Agent", "Mozilla/5.0 (X11; Ubuntu; Linu…) Gecko/20100101 Firefox/61.0");
+        urlConnection.setRequestProperty("Accept-Language", "en-GB,en;q=0.5");
+        urlConnection.setConnectTimeout(60 * 1000);
+        urlConnection.setRequestProperty("Connection", "Keep-Alive");
+        urlConnection.setAllowUserInteraction(true);
+        urlConnection.setRequestProperty("Range",
                 "bytes=" + startPos + "-" + endPos);
     }
 
